@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <title>Golden Visuals</title>
+  <script src="https://cdn.jsdelivr.net/npm/tone@14.7.77/build/Tone.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tonejs/midi@2.0.27"></script>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(120deg,#23243e 0%,#30323d 100%);
+      overflow-x: hidden;
+      color: #fff;
+      font-family: Arial, sans-serif;
+    }
+    #ui {
+      position: fixed;
+      z-index: 2;
+      top: 10px;
+      left: 12px;
+      background: rgba(44,46,70,0.95);
+      border-radius: 14px;
+      box-shadow: 0 2px 28px #2229;
+      padding: 12px 18px 18px 18px;
+      max-width: 560px;
+      user-select: none;
+    }
+    #controls, #extra, #morefx, #fx2 {margin-bottom:12px;}
+    #controls input, #controls select,
+    #extra input, #extra label,
+    #morefx input, #morefx select,
+    #fx2 input {
+      margin:6px 9px 6px 7px;
+    }
+    #extra, #fx2 {margin-top: 2px;}
+    button, select, input[type="checkbox"], input[type="number"], input[type="range"] {
+      cursor: pointer;
+    }
+    canvas {
+      display: block;
+      margin: 44px auto 0 auto;
+      border-radius: 18px;
+      box-shadow: 0 4px 64px #000a, 0 0 32px #ffd95a44;
+      outline: none;
+      background: transparent;
+    }
+    .track-color-label {
+      margin-right: 16px;
+      display: inline-block;
+      font-size: 15px;
+    }
+    .control-label, .extra-label, .morefx-label {
+      font-size: 15px;
+    }
+    #status {font-size: 17px; color: #ffd95a; margin-left: 36px;}
+    .rec-btn {
+      font-size: 17px; background:#222; color:#ffe660;
+      border-radius:7px; border:none; padding:7px 24px; margin-right:10px; 
+      transition: background 0.14s;
+    }
+    .rec-btn:hover {background:#33313a;}
+    ::selection {background: #ffd95a22;}
+  </style>
+</head>
+<body>
+<div id="ui">
+  <button id="recWebmBtn" class="rec-btn">▶️ Record WebM</button>
+  <span id="recWebmStatus"></span>
+  <div id="controls">
+    <label class="control-label">Particle style:
+      <select id="particleType">
+        <option value="classic">balls</option>
+        <option value="star">starts</option>
+        <option value="rect">rectangles</option>
+        <option value="ring">rings</option>
+      </select>
+    </label>
+    <label class="control-label">amount: <input id="particleAmount" type="number" min="0" max="1000" value="100"></label>
+    <label class="control-label">size: <input id="particleSize" type="number" min="0" max="12" step="0.1" value="0.1"></label>
+    <label class="control-label">speed: <input id="particleSpeed" type="number" step="0.1" min="0." max="500" value="1.3"></label>
+    <label class="control-label">Alpha: <input id="particleAlpha" type="number" step="0.01" min="0.0" max="100" value="0.8"></label>
+    <button id="resetParticles">Reset Particle</button>
+    <button id="clearMidi">Clear MIDI</button>
+  </div>
+  <div id="extra">
+    <label class="extra-label">piano width: <input id="pianoWidth" type="number" min="400" max="1920" step="10" value="1920"></label>
+    <label class="extra-label">piano alpha: <input id="pianoAlpha" type="range" min="0.2" max="1.0" step="0.01" value="1" style="width:70px;"></label>
+    <label class="extra-label">Night Mode: <input id="nightMode" type="checkbox"></label>
+    <label class="extra-label">Tempo: <input id="tempo" type="number" min="30" max="220" value="120" style="width:48px;"></label>
+    <label class="extra-label">Autoplay: <input id="autoplay" type="checkbox"></label>
+    <label class="extra-label">note delay: <input id="noteDelay" type="number" min="0" max="10" step="0.1" value="1.0" style="width:48px;"></label>
+    <label class="extra-label"><button id="pauseBtn">Pause</button></label>
+    <label class="extra-label">mark keys notes: <input id="markKeysNotes" type="checkbox"></label>
+    <span id="status"></span>
+  </div>
+  <div id="morefx">
+    <label class="morefx-label">note gradient: <input id="nutGradient" type="checkbox"></label>
+    <label class="morefx-label">Blur FX particle: <input id="particleBlur" type="checkbox"></label>
+    <label class="morefx-label">piano shadow: <input id="shadowDepth" type="range" min="0" max="48" value="20" style="width:70px;"></label>
+    <label class="morefx-label" style="display:none;">gold lettering: <input id="showTitle" type="checkbox" checked></label>
+    <label class="morefx-label">Saber line style:
+      <select id="saberStyle">
+        <option value="neon">Neon</option>
+        <option value="gold">Gold</option>
+        <option value="dynamic">Pulse</option>
+      </select>
+    </label>
+    <label class="morefx-label">demo: <input id="demoMode" type="checkbox"></label>
+  </div>
+  <div id="fx2">
+    <label class="morefx-label">Rainbow mode: <input id="rainbowMode" type="checkbox"></label>
+    <label class="morefx-label">Bounce particles: <input id="bounceParticles" type="checkbox"></label>
+    <label class="morefx-label">Ghost Notes: <input id="ghostNotes" type="checkbox"></label>
+    <label class="morefx-label">Gravity: <input id="gravity" type="number" min="0" max="0.35" step="0.01" value="0.07"></label>
+    <label class="morefx-label">Invert background: <input id="invertBg" type="checkbox"></label>
+    <label class="morefx-label"><button id="randomColors">Randomize Track Colors</button></label>
+    <label class="morefx-label"><button id="snapshotBtn">Snapshot</button></label>
+  </div>
+  <div id="colors"></div>
+  <label>midi file: <input type="file" id="midiFile"></label>
+  <button id="start">Start</button>
+  <button id="stop">Stop</button>
+</div>
+<canvas id="waterfall" width="3840" height="2160"></canvas>
+<script>
+let pianoHeight = 100;
+let waterfallHeight = 1080;
+let canvas = document.getElementById('waterfall');
+let ctx = canvas.getContext('2d');
+
+function setCanvasSize(){
+  canvas.width = parseInt(document.getElementById('pianoWidth').value);
+  canvas.height = waterfallHeight;
+}
+setCanvasSize();
+
+const waterfallScale = 180;
+let pianoY = canvas.height - pianoHeight;
+let saberY = pianoY - 2;
+const waterfallRadius = 6, whiteRadius = 5, blackRadius = 5;
+const defaultTrackColors = [
+  "#49aaff", "#ff6666", "#ffd95a", "#62ebad", "#b16aff", "#ff90c0"
+];
+let trackCount = 0, trackColors = [];
+const firstMidi = 21, lastMidi = 108;
+const keysTotal = 88, keyNames = ["A","A#","B","C","C#","D","D#","E","F","F#","G","G#"];
+const keyMap = [];
+let pitch = firstMidi, whiteIdx = 0;
+for(let i=0;i<keysTotal;i++,pitch++){
+  let noteIdx=(pitch-21)%12, octave=Math.floor((pitch-12)/12);
+  let isBlack=keyNames[noteIdx].includes('#');
+  keyMap.push({midi:pitch, note:keyNames[noteIdx], octave:octave,
+    type: isBlack?"black":"white", wIdx:isBlack?whiteIdx-1:whiteIdx});
+  if(!isBlack) whiteIdx++;
+}
+let whiteKeys = keyMap.filter(k=>k.type==="white");
+let blackKeys = keyMap.filter(k=>k.type==="black");
+let whiteW = canvas.width/whiteKeys.length, whiteH = pianoHeight;
+let blackW = whiteW*0.58, blackH = whiteH*0.62;
+
+// UI state and handlers updating variables and canvas sizes
+function updatePianoSize(){
+  setCanvasSize();
+  pianoY = canvas.height - pianoHeight;
+  saberY = pianoY - 2;
+  whiteW = canvas.width/whiteKeys.length;
+  whiteH = pianoHeight;
+  blackW = whiteW*0.58;
+  blackH = whiteH*0.62;
+  drawWaterfall(0);
+}
+document.getElementById('pianoWidth').oninput = updatePianoSize;
+
+// Variables for audio playback and animation
+let notes = [], midiLoaded = false, midiDuration = 0;
+let playing = false, paused = false, startTime = 0;
+let scheduled = [];
+let particles = [];
+let demoMode = false, rainbowMode = false, bounceParticles = false, ghostNotes = false, gravity = 0.07, invertBg = false;
+let particleType = "classic"; let particleAmount = 20; let particleSize = 3; let particleSpeed = 1.3; let particleAlpha = 0.8;
+let particleBlur = false; let pianoAlpha = 1; let nightMode = false; let tempoValue = 120; let autoplay = false;
+let nutGradient = false; let shadowDepth = 20; let showTitle = false; let saberStyle = "neon";
+let noteDelay = 1.0; // seconds
+let markKeysNotes = false;
+
+// Event binding for UI inputs (brief, for all inputs)
+document.getElementById('particleType').onchange = e => particleType = e.target.value;
+document.getElementById('particleAmount').oninput = e => particleAmount = parseInt(e.target.value);
+document.getElementById('particleSize').oninput = e => particleSize = parseFloat(e.target.value);
+document.getElementById('particleSpeed').oninput = e => particleSpeed = parseFloat(e.target.value);
+document.getElementById('particleAlpha').oninput = e => particleAlpha = parseFloat(e.target.value);
+document.getElementById('particleBlur').onchange = e => particleBlur = !!e.target.checked;
+document.getElementById('pianoAlpha').oninput = e => pianoAlpha = parseFloat(e.target.value);
+document.getElementById('nightMode').onchange = e => nightMode = !!e.target.checked;
+document.getElementById('tempo').oninput = e => tempoValue = parseInt(e.target.value);
+document.getElementById('resetParticles').onclick = () => particles = [];
+document.getElementById('clearMidi').onclick = () => {notes = []; midiLoaded = false; particles = []; stopWaterfall();}
+document.getElementById('autoplay').onchange = e => autoplay = !!e.target.checked;
+document.getElementById('nutGradient').onchange = e => nutGradient = !!e.target.checked;
+document.getElementById('shadowDepth').oninput = e => shadowDepth = parseInt(e.target.value);
+document.getElementById('showTitle').onchange = e => showTitle = !!e.target.checked;
+document.getElementById('saberStyle').onchange = e => saberStyle = e.target.value;
+document.getElementById('demoMode').onchange = e => demoMode = !!e.target.checked;
+document.getElementById('rainbowMode').onchange = e => rainbowMode = !!e.target.checked;
+document.getElementById('bounceParticles').onchange = e => bounceParticles = !!e.target.checked;
+document.getElementById('ghostNotes').onchange = e => ghostNotes = !!e.target.checked;
+document.getElementById('gravity').oninput = e => gravity = parseFloat(e.target.value);
+document.getElementById('invertBg').onchange = e => invertBg = !!e.target.checked;
+document.getElementById('pauseBtn').onclick = () => { paused = !paused; if(paused) Tone.Transport.pause(); else Tone.Transport.start(); };
+document.getElementById('randomColors').onclick = () => {for(let i=0;i<trackColors.length;i++) trackColors[i]= "#"+Math.floor(Math.random()*16777215).toString(16).padStart(6,'0');};
+document.getElementById('snapshotBtn').onclick = () => {
+  let link = document.createElement('a');
+  link.download = "golden_piano_waterfall.png";
+  link.href = canvas.toDataURL();
+  link.click();
+};
+document.getElementById('noteDelay').oninput = function(e){ noteDelay = parseFloat(e.target.value); };
+document.getElementById('markKeysNotes').onchange = e => markKeysNotes = !!e.target.checked;
+
+// WebM recorder logic
+let webmRecorder, webmChunks = [], webmIsRecording = false;
+const recWebmBtn = document.getElementById('recWebmBtn');
+const recWebmStatus = document.getElementById('recWebmStatus');
+function startWebmRecording() {
+  let stream = canvas.captureStream(60); // 60 FPS
+  webmChunks = [];
+  webmRecorder = new MediaRecorder(stream, {mimeType:"video/webm; codecs=vp9"});
+  webmRecorder.ondataavailable = (e)=>{ if(e.data.size) webmChunks.push(e.data); };
+  webmRecorder.onstop = ()=>{
+    const blob = new Blob(webmChunks, { type: "video/webm" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = "golden_piano_waterfall.webm";
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{URL.revokeObjectURL(url); a.remove();},800);
+    recWebmStatus.textContent = "recording is ready!";
+    recWebmBtn.textContent = "▶️ record WebM";
+    webmIsRecording = false;
+  };
+  webmRecorder.start();
+  webmIsRecording = true;
+  recWebmStatus.textContent = "video recording...";
+  recWebmBtn.textContent = "⏹️ Stop and download";
+}
+recWebmBtn.onclick = ()=>{
+  if(webmIsRecording){
+    webmRecorder.stop();
+    recWebmStatus.textContent = "Finalizing...";
+    recWebmBtn.disabled = true;
+    setTimeout(()=>{recWebmBtn.disabled = false;}, 1400);
+  }else{
+    startWebmRecording();
+  }
+};
+
+// Render color pickers for tracks
+function renderColorPickers(tracks){
+  const colorsDiv = document.getElementById('colors');
+  colorsDiv.innerHTML = '';
+  trackColors.length = tracks;
+  for(let i=0;i<tracks;i++){
+    trackColors[i] = trackColors[i] || defaultTrackColors[i%defaultTrackColors.length];
+    const label = document.createElement('label');
+    label.className = "track-color-label";
+    label.innerText = `Track ${i+1}: `;
+    const input = document.createElement('input');
+    input.type = "color";
+    input.value = trackColors[i];
+    input.dataset.track = i;
+    input.oninput = function() {
+      trackColors[parseInt(this.dataset.track)] = this.value;
+    };
+    label.appendChild(input);
+    colorsDiv.appendChild(label);
+  }
+}
+
+// Load MIDI file and parse notes
+function loadMidiFile(arrayBuffer){
+  const midi = new Midi(arrayBuffer);
+  notes = [];
+  midiDuration = midi.duration;
+  trackCount = midi.tracks.length;
+  renderColorPickers(trackCount);
+  midi.tracks.forEach((track, trackIdx) => {
+    track.notes.forEach(n => {
+      if(n.midi<firstMidi || n.midi>lastMidi) return;
+      notes.push({midi: n.midi, t0: n.time, dur: n.duration,
+        velocity: Math.max(0.18, n.velocity), track: trackIdx});
+    });
+  });
+  notes.sort((a,b)=>a.t0-b.t0);
+  midiLoaded = true;
+  if(autoplay) playWaterfall();
+}
+document.getElementById('midiFile').addEventListener("change",function(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev)=>{ loadMidiFile(ev.target.result); };
+  reader.readAsArrayBuffer(file);
+});
+
+// Rounded rectangles for piano keys and notes
+function fillRoundRect(ctx, x, y, w, h, r, fillStyle, gradient=null) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h);
+  ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+  ctx.fillStyle = gradient ? gradient : fillStyle;
+  ctx.fill();
+  ctx.restore();
+}
+
+// Particle Effects
+function rainbowColor(t){
+  let h = (t*7)%360; return "hsl("+h+",85%,56%)";
+}
+function drawParticleClassic(ctx, p) {
+  ctx.save();
+  ctx.globalAlpha = p.alpha;
+  ctx.shadowColor = p.color;
+  const blurPower = particleBlur ? 12 + 8 * Math.sin(performance.now() / 350 + p.life) : 6;
+  ctx.shadowBlur = blurPower;
+  ctx.translate(p.x, p.y);
+  ctx.rotate(Math.sin(p.life / 7) * 0.4);
+  ctx.beginPath();
+  ctx.arc(0, 0, p.radius * (0.85 + 0.3 * Math.sin(performance.now() / 150 + p.life)), 0, 2 * Math.PI);
+  ctx.fillStyle = rainbowMode ? rainbowColor(p.x + p.y + p.life) : p.color;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.restore();
+}
+function drawParticleStar(ctx, p) {
+  ctx.save();
+  ctx.globalAlpha = p.alpha;
+  ctx.shadowColor = particleBlur ? p.color : p.color + "bb";
+  ctx.shadowBlur = particleBlur ? 20 : 10;
+  ctx.fillStyle = rainbowMode ? rainbowColor(p.x + p.y + p.life*2) : p.color;
+  ctx.translate(p.x, p.y);
+  for(let i=0; i<5; i++){
+    ctx.rotate(Math.PI/2.5);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(0, -p.radius);
+    ctx.lineTo(p.radius/3, -p.radius/2);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.shadowBlur = 0;
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+function drawParticleRect(ctx, p) {
+  ctx.save();
+  ctx.globalAlpha = p.alpha;
+  ctx.shadowColor = particleBlur ? p.color : p.color + "bb";
+  ctx.shadowBlur = particleBlur ? 20 : 10;
+  ctx.fillStyle = rainbowMode ? rainbowColor(p.x + p.life*3) : p.color;
+  ctx.fillRect(p.x - p.radius/2, p.y - p.radius/2, p.radius, p.radius/2);
+  ctx.shadowBlur = 0;
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+function drawParticleRing(ctx, p) {
+  ctx.save();
+  ctx.globalAlpha = p.alpha;
+  ctx.shadowColor = particleBlur ? p.color : p.color + "a0";
+  ctx.shadowBlur = particleBlur ? 14 : 7;
+  ctx.strokeStyle = rainbowMode ? rainbowColor(p.y + p.life*5) : p.color;
+  ctx.lineWidth = p.radius/3;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, p.radius, 0, 2*Math.PI);
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+function spawnParticles(x, y, color) {
+  for (let i = 0; i < particleAmount; i++) {
+    let base = {
+      x: x + (Math.random()-0.5)*3,
+      y: y + Math.random()*6,
+      vx: (Math.random()-0.5)*particleSpeed,
+      vy: -Math.random()*particleSpeed-0.1,
+      alpha: particleAlpha + Math.random()*0.12,
+      color: color,
+      radius: particleSize + Math.random()*2.3,
+      life: Math.random()*20 + 35,
+      type: particleType
+    };
+    particles.push(base);
+  }
+}
+
+// Shade color helper
+function shadeColor(color, percent) {
+  let R, G, B;
+  const hex = color.replace('#','');
+  if (hex.length == 6){
+    R = parseInt(hex.substring(0,2),16);
+    G = parseInt(hex.substring(2,4),16);
+    B = parseInt(hex.substring(4,6),16);
+  } else if(hex.length == 3){
+    R = parseInt(hex[0] + hex,16);
+    G = parseInt(hex[1] + hex[1],16);
+    B = parseInt(hex[2] + hex[2],16);
+  } else {
+    return color;
+  }
+  R = Math.min(255,Math.max(0,R + percent));
+  G = Math.min(255,Math.max(0,G + percent));
+  B = Math.min(255,Math.max(0,B + percent));
+  return '#' + ((1<<24)|(R<<16)|(G<<8)|B).toString(16).slice(1);
+}
+// Gold gradient for waterfall notes
+function gradientGold(ctx, x, y, w, h, base){
+  let grad = ctx.createLinearGradient(x, y, x, y + h);
+  grad.addColorStop(0, base);
+  grad.addColorStop(0.45, "#fff7a1");
+  grad.addColorStop(0.6, "#ffd700ee");
+  grad.addColorStop(1, "#b8860b99");
+  return grad;
+}
+
+// Main draw loop
+function drawWaterfall(curT){
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if(invertBg){
+    ctx.save();
+    ctx.fillStyle = "#fcfcfc";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+  }
+  if(nightMode && !invertBg){
+    ctx.save();
+    ctx.fillStyle = "#121323";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+  }
+  let _activeNotes = 0;
+  for(let n of notes){
+    let k = keyMap[n.midi - 21];
+    let x = k.wIdx * whiteW, w = whiteW - 2;
+    let isBlackKey = k.type === "black";
+    if(isBlackKey) { x += whiteW - blackW / 2; w = blackW; }
+    let h = n.dur * waterfallScale;
+    let y = pianoY - h - (n.t0 + noteDelay - curT) * waterfallScale;
+    if(y + h < 0 || y > pianoY - 12) continue;
+    let trCol = trackColors[n.track % trackColors.length] || defaultTrackColors[n.track % defaultTrackColors.length];
+    let color = isBlackKey
+      ? shadeColor(nightMode ? trCol : "" + trCol, nightMode ? -42 : -22)
+      : nightMode ? shadeColor(trCol, 15) : trCol;
+    if(rainbowMode) color = rainbowColor(n.midi * 12 + curT * 20 + n.track * 48);
+    let ghost = ghostNotes && n.velocity < 0.25;
+    ctx.globalAlpha = ghost ? 0.14 : n.velocity;
+    if(nutGradient && !ghost){
+      fillRoundRect(ctx, x, y, w, h, Math.min(w, waterfallRadius), color, gradientGold(ctx, x, y, w, h, color));
+    } else if(ghost){
+      fillRoundRect(ctx, x, y, w, h, Math.min(w, waterfallRadius), "#bbb");
+    } else{
+      fillRoundRect(ctx, x, y, w, h, Math.min(w, waterfallRadius), color);
+    }
+    // OZNACZENIE nut literami
+    if (markKeysNotes) {
+      const display = k.note.replace('#', '');
+      if (['C','D','E','F','G','A','B'].includes(display)) {
+        ctx.save();
+        ctx.font = "bold 14.5px Arial";
+        ctx.fillStyle = "#643b00";
+        ctx.globalAlpha = ghost ? 0.21 : n.velocity * 0.9;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(display, x + w/2, y + h/2);
+        ctx.restore();
+      }
+    }
+    if(curT >= n.t0 + noteDelay && curT <= (n.t0 + n.dur + noteDelay)) _activeNotes++;
+    ctx.globalAlpha = 1;
+  }
+  // Improved Saber line with multi-layer glow and pulse animation
+  ctx.save();
+  ctx.lineCap = "round";
+  const baseAlpha = 0.7;
+  const pulse = (Math.sin(performance.now() / 250) + 1) / 2;
+  const pulseGlow = 12 + 10 * pulse;
+  ctx.shadowColor = saberStyle === "gold" ? "#ffd600" : "#35ffe0";
+  ctx.shadowBlur = pulseGlow;
+  let gradient = ctx.createLinearGradient(0, saberY - 4, 0, saberY + 4);
+  if (saberStyle === "gold") {
+    gradient.addColorStop(0, "#fff7a1");
+    gradient.addColorStop(0.5, "#ffd700");
+    gradient.addColorStop(1, "#b8860b");
+    ctx.strokeStyle = gradient;
+  } else if (saberStyle === "neon") {
+    gradient.addColorStop(0, "#1affff");
+    gradient.addColorStop(0.5, "#17ffff");
+    gradient.addColorStop(1, "#0ad4e6");
+    ctx.strokeStyle = gradient;
+  } else {
+    ctx.strokeStyle = rainbowMode ? rainbowColor(performance.now() / 100) : "#ffda56";
+  }
+  ctx.lineWidth = 10 + 6 * pulse;
+  ctx.beginPath();
+  ctx.moveTo(0, saberY);
+  ctx.lineTo(canvas.width, saberY);
+  ctx.globalAlpha = baseAlpha + 0.3 * pulse;
+  ctx.stroke();
+  ctx.restore();
+
+  // Shadow pod pianinem
+  if(shadowDepth > 0){
+    ctx.save();
+    ctx.globalAlpha = Math.max(0.13, Math.min(0.25, shadowDepth / 70));
+    ctx.fillStyle = "#000";
+    ctx.shadowColor = "#1b180f";
+    ctx.shadowBlur = shadowDepth;
+    ctx.fillRect(0, pianoY + whiteH - 1, canvas.width, 24 + shadowDepth / 2);
+    ctx.restore();
+  }
+
+  // Piano white keys with enhanced gradient for depth
+  ctx.globalAlpha = pianoAlpha;
+  for(let i = 0; i < whiteKeys.length; i++){
+    const k = whiteKeys[i], x = i * whiteW;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(x + whiteRadius, pianoY);
+    ctx.lineTo(x + whiteW - whiteRadius, pianoY);
+    ctx.arcTo(x + whiteW, pianoY, x + whiteW, pianoY + whiteRadius, whiteRadius);
+    ctx.lineTo(x + whiteW, pianoY + whiteH - whiteRadius);
+    ctx.arcTo(x + whiteW, pianoY + whiteH, x + whiteW - whiteRadius, pianoY + whiteH, whiteRadius);
+    ctx.lineTo(x + whiteRadius, pianoY + whiteH);
+    ctx.arcTo(x, pianoY + whiteH, x, pianoY + whiteH - whiteRadius, whiteRadius);
+    ctx.lineTo(x, pianoY + whiteRadius);
+    ctx.arcTo(x, pianoY, x + whiteRadius, pianoY, whiteRadius);
+    ctx.closePath();
+    let grad = ctx.createLinearGradient(0, pianoY, 0, pianoY + whiteH);
+    grad.addColorStop(0, '#fffefc');
+    grad.addColorStop(1, '#d1ccc7');
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.strokeStyle = "#333";
+    ctx.lineWidth = 1.3;
+    ctx.shadowColor = "rgba(0,0,0,0.25)";
+    ctx.shadowBlur = 4;
+    ctx.stroke();
+    ctx.restore();
+    // OZNACZENIE klawisza literą
+    if (markKeysNotes) {
+      const display = k.note.replace('#','');
+      if (['C','D','E','F','G','A','B'].includes(display)) {
+        ctx.save();
+        ctx.font = "bold 19px Arial";
+        ctx.fillStyle = "#3e50ad";
+        ctx.globalAlpha = 0.7 * pianoAlpha;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        ctx.fillText(display, x + whiteW/2, pianoY + 2);
+        ctx.restore();
+      }
+    }
+  }
+
+  // Piano black keys with subtle gradient and highlights
+  for(let k of blackKeys){
+    const x = k.wIdx * whiteW + whiteW - blackW / 2;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(x + blackRadius, pianoY);
+    ctx.lineTo(x + blackW - blackRadius, pianoY);
+    ctx.arcTo(x + blackW, pianoY, x + blackW, pianoY + blackRadius, blackRadius);
+    ctx.lineTo(x + blackW, pianoY + blackH - blackRadius);
+    ctx.arcTo(x + blackW, pianoY + blackH, x + blackW - blackRadius, pianoY + blackH, blackRadius);
+    ctx.lineTo(x + blackRadius, pianoY + blackH);
+    ctx.arcTo(x, pianoY + blackH, x, pianoY + blackH - blackRadius, blackRadius);
+    ctx.lineTo(x, pianoY + blackRadius);
+    ctx.arcTo(x, pianoY, x + blackRadius, pianoY, blackRadius);
+    ctx.closePath();
+    let grad = ctx.createLinearGradient(0, pianoY, 0, pianoY + blackH);
+    grad.addColorStop(0, '#44475a');
+    grad.addColorStop(1, '#1e2130');
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.shadowColor = "rgba(255, 255, 255, 0.15)";
+    ctx.shadowBlur = 8;
+    ctx.strokeStyle = "#4a4f69";
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+
+  // Highlight active keys & spawn particles at note start
+  for(let n of notes){
+    if(curT >= n.t0 + noteDelay && curT <= (n.t0 + n.dur + noteDelay)){
+      const k = keyMap[n.midi - 21];
+      let xshow, wshow, radius, isBlackKey = k.type === "black", trCol;
+      trCol = trackColors[n.track % trackColors.length] || defaultTrackColors[n.track % defaultTrackColors.length];
+      let noteCol = isBlackKey
+        ? shadeColor(nightMode ? trCol : "" + trCol, nightMode ? -42 : -22)
+        : nightMode ? shadeColor(trCol, 15) : trCol;
+      if(rainbowMode) noteCol = rainbowColor(n.midi * 12 + curT * 20 + n.track * 48);
+      radius = isBlackKey ? blackRadius : whiteRadius;
+      if(!isBlackKey){
+        xshow = k.wIdx * whiteW;
+        wshow = whiteW;
+      } else {
+        xshow = k.wIdx * whiteW + whiteW - blackW / 2;
+        wshow = blackW;
+      }
+      ctx.save();
+      ctx.globalAlpha = isBlackKey ? 0.54 * pianoAlpha : 0.36 * pianoAlpha;
+      fillRoundRect(ctx, xshow, pianoY, wshow, isBlackKey ? blackH : whiteH, Math.min(wshow, radius), noteCol);
+      ctx.restore();
+      let partX = !isBlackKey ? k.wIdx * whiteW + whiteW / 2 : k.wIdx * whiteW + whiteW - blackW / 2 + blackW / 2;
+      let partY = pianoY - 4;
+      if(Math.abs(curT - (n.t0 + noteDelay)) < 0.04){
+        spawnParticles(partX, partY, noteCol);
+      }
+    }
+  }
+
+  // Update and draw particles
+  for(let i = particles.length - 1; i >= 0; i--){
+    let p = particles[i];
+    if(p.type === 'classic') drawParticleClassic(ctx, p);
+    else if(p.type === 'star') drawParticleStar(ctx, p);
+    else if(p.type === 'rect') drawParticleRect(ctx, p);
+    else if(p.type === 'ring') drawParticleRing(ctx, p);
+    p.x += p.vx;
+    p.y += p.vy;
+    if(bounceParticles && p.y > pianoY - 7){
+      p.vy *= -0.315 + Math.random() * 0.16;
+      p.y = pianoY - 7;
+    }
+    p.vy += gravity;
+    p.alpha -= 0.012 + Math.random() * 0.008;
+    p.radius *= 0.985 + 0.005 * Math.sin(performance.now() / 100 + i);
+    p.life--;
+    if (p.alpha <= 0.01 || p.radius <= 0.3 || p.life < 0) particles.splice(i, 1);
+  }
+
+  // Display notes left and time info top-right
+  ctx.save();
+  ctx.globalAlpha = 0.93;
+  ctx.font = "bold 16.5px Segoe UI";
+  ctx.fillStyle = "#ffd95a";
+  ctx.textAlign = "right";
+  let end = playing ? Math.max(0, (midiDuration + noteDelay - (curT || 0))).toFixed(1) : "0.0";
+  let left = playing ? notes.filter(n => n.t0 + noteDelay > curT).length : 0;
+  ctx.fillText("notes to end " + left + " time to end: " + end + "s", canvas.width - 16, 28);
+  ctx.restore();
+
+  document.getElementById('status').textContent = playing ? `notes to end: ${left}, time to end: ${end}s` : '';
+}
+
+// Playback MIDI using Tone.js with delay for waterfall effect
+async function playWaterfall(){
+  if(!midiLoaded || notes.length === 0) return;
+  playing = true;
+  paused = false;
+  startTime = performance.now() / 1000;
+  scheduled = [];
+  const synth = new Tone.PolySynth(Tone.Synth).toDestination();
+  Tone.Transport.bpm.value = tempoValue;
+  Tone.Transport.seconds = 0;
+  for(const n of notes){
+    scheduled.push(Tone.Transport.schedule((time) => {
+      synth.triggerAttackRelease(
+        Tone.Frequency(n.midi, "midi"),
+        n.dur, time, n.velocity
+      );
+    }, n.t0 + noteDelay));
+  }
+  setTimeout(() => {
+    Tone.Transport.start();
+  }, noteDelay * 1000);
+}
+function stopWaterfall(){
+  playing = false;
+  Tone.Transport.stop();
+  Tone.Transport.cancel();
+  scheduled = [];
+}
+document.getElementById('start').onclick = () => { playWaterfall(); };
+document.getElementById('stop').onclick = () => { stopWaterfall(); };
+
+// Demo mode animation
+function demoTick(t){
+  for(let d = 0; d < 6; d++){
+    let x = 80 + d * whiteW * 7;
+    let y = Math.abs(Math.sin(t / 100 + (d * 3))) * canvas.height * 0.6 + 24;
+    let w = whiteW * 0.7;
+    let col = rainbowMode ? rainbowColor(t + d * 41) : [ "#ffd95a", "#ff3cc0", "#30d1ff", "#7aff72" ][d % 4];
+    fillRoundRect(ctx, x, y, w, 28, 9, col, nutGradient ? gradientGold(ctx, x, y, w, 28, col) : null);
+    if(t % 45 < 2) spawnParticles(x + w / 2, y + 7, col);
+  }
+  for(let i = particles.length - 1; i >= 0; i--){
+    let p = particles[i];
+    drawParticleClassic(ctx, p);
+    p.x += p.vx;
+    p.y += p.vy;
+    if(bounceParticles && p.y > pianoY - 7){
+      p.vy *= -0.315 + Math.random() * 0.16;
+      p.y = pianoY - 7;
+    }
+    p.vy += gravity;
+    p.alpha -= 0.012 + Math.random() * 0.01;
+    p.radius *= 0.98 + Math.random() * 0.005;
+    p.life--;
+    if(p.alpha <= 0.01 || p.radius <= 0.18 || p.life < 0) particles.splice(i, 1);
+  }
+}
+
+// Animation loop
+function animate(){
+  requestAnimationFrame(animate);
+  if(demoMode && !midiLoaded) {
+    drawWaterfall(0);
+    demoTick(Math.floor(performance.now() / 10));
+  } else if(playing && !paused){
+    let curT = (performance.now() / 1000) - startTime;
+    drawWaterfall(curT);
+    if(curT > midiDuration + noteDelay + 1) stopWaterfall();
+  } else {
+    drawWaterfall(0);
+  }
+}
+animate();
+</script>
+</body>
+</html>
